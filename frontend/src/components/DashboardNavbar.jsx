@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import useAuth from '../hooks/useAuth'
 
 const DashboardNavbar = () => {
@@ -7,16 +7,61 @@ const DashboardNavbar = () => {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
+
+  // Reset the logout timer
+  const resetTimer = useCallback(() => {
+    if (window.logoutTimer) clearTimeout(window.logoutTimer)
+
+    window.logoutTimer = setTimeout(() => {
+      logout()
+      alert("You have been logged out due to 15 minutes of inactivity.")
+    }, INACTIVITY_LIMIT)
+  }, [logout])
+
+  // Start inactivity listener
+  useEffect(() => {
+    resetTimer()
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"]
+
+    const activityListener = () => resetTimer()
+
+    events.forEach((event) =>
+      window.addEventListener(event, activityListener)
+    )
+
+    return () => {
+      events.forEach((event) =>
+        window.removeEventListener(event, activityListener)
+      )
+      if (window.logoutTimer) clearTimeout(window.logoutTimer)
+    }
+  }, [resetTimer])
+
+
   const isActive = (path) => {
     if (path === '/traveler') {
-      return location.pathname === '/traveler' || location.pathname.startsWith('/traveler/select-seats') || location.pathname.startsWith('/traveler/payment')
+      return (
+        location.pathname === '/traveler' ||
+        location.pathname.startsWith('/traveler/select-seats') ||
+        location.pathname.startsWith('/traveler/payment')
+      )
     }
     if (path === '/admin') {
-      return location.pathname === '/admin' || (location.pathname.startsWith('/admin/') && location.pathname !== '/admin/flights' && location.pathname !== '/admin/bookings' && location.pathname !== '/admin/users' && location.pathname !== '/admin/manual' && location.pathname !== '/admin/profile')
+      return (
+        location.pathname === '/admin' ||
+        (location.pathname.startsWith('/admin/') &&
+          !['/admin/flights', '/admin/bookings', '/admin/users', '/admin/manual', '/admin/profile']
+            .includes(location.pathname))
+      )
     }
     return location.pathname === path || location.pathname.startsWith(path + '/')
   }
 
+  // -------------------------------
+  // ADMIN NAVBAR
+  // -------------------------------
   if (user?.role === 'admin') {
     return (
       <nav className="dashboard-navbar">
@@ -75,6 +120,9 @@ const DashboardNavbar = () => {
     )
   }
 
+  // -------------------------------
+  // TRAVELER NAVBAR
+  // -------------------------------
   return (
     <nav className="dashboard-navbar">
       <div className="navbar-container">
@@ -118,4 +166,3 @@ const DashboardNavbar = () => {
 }
 
 export default DashboardNavbar
-
